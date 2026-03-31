@@ -965,10 +965,24 @@ export function issueRoutes(db: Db, storage: StorageService) {
           source: "assignment",
           triggerDetail: "system",
           reason: "issue_assigned",
-          payload: { issueId: issue.id, mutation: "update" },
+          payload: {
+            issueId: issue.id,
+            mutation: "update",
+            issueTitle: issue.title,
+            issueBody: issue.description ?? null,
+            issueIdentifier: issue.identifier,
+          },
           requestedByActorType: actor.actorType,
           requestedByActorId: actor.actorId,
-          contextSnapshot: { issueId: issue.id, source: "issue.update" },
+          contextSnapshot: {
+            issueId: issue.id,
+            taskId: issue.id,
+            wakeReason: "issue_assigned",
+            source: "issue.update",
+            issueTitle: issue.title,
+            issueBody: issue.description ?? null,
+            issueIdentifier: issue.identifier,
+          },
         });
       }
 
@@ -999,7 +1013,14 @@ export function issueRoutes(db: Db, storage: StorageService) {
             source: "automation",
             triggerDetail: "system",
             reason: "issue_comment_mentioned",
-            payload: { issueId: id, commentId: comment.id },
+            payload: {
+              issueId: id,
+              commentId: comment.id,
+              issueTitle: issue.title,
+              issueBody: issue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: issue.identifier,
+            },
             requestedByActorType: actor.actorType,
             requestedByActorId: actor.actorId,
             contextSnapshot: {
@@ -1009,6 +1030,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
               wakeCommentId: comment.id,
               wakeReason: "issue_comment_mentioned",
               source: "comment.mention",
+              issueTitle: issue.title,
+              issueBody: issue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: issue.identifier,
             },
           });
         }
@@ -1120,10 +1145,24 @@ export function issueRoutes(db: Db, storage: StorageService) {
           source: "assignment",
           triggerDetail: "system",
           reason: "issue_checked_out",
-          payload: { issueId: issue.id, mutation: "checkout" },
+          payload: {
+            issueId: issue.id,
+            mutation: "checkout",
+            issueTitle: issue.title,
+            issueBody: issue.description ?? null,
+            issueIdentifier: issue.identifier,
+          },
           requestedByActorType: actor.actorType,
           requestedByActorId: actor.actorId,
-          contextSnapshot: { issueId: issue.id, source: "issue.checkout" },
+          contextSnapshot: {
+            issueId: issue.id,
+            taskId: issue.id,
+            source: "issue.checkout",
+            wakeReason: "issue_checked_out",
+            issueTitle: issue.title,
+            issueBody: issue.description ?? null,
+            issueIdentifier: issue.identifier,
+          },
         })
         .catch((err) => logger.warn({ err, issueId: issue.id }, "failed to wake assignee on issue checkout"));
     }
@@ -1360,6 +1399,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
               commentId: comment.id,
               reopenedFrom: reopenFromStatus,
               mutation: "comment",
+              issueTitle: currentIssue.title,
+              issueBody: currentIssue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: currentIssue.identifier,
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
             requestedByActorType: actor.actorType,
@@ -1371,6 +1414,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
               source: "issue.comment.reopen",
               wakeReason: "issue_reopened_via_comment",
               reopenedFrom: reopenFromStatus,
+              issueTitle: currentIssue.title,
+              issueBody: currentIssue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: currentIssue.identifier,
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
           });
@@ -1383,6 +1430,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
               issueId: currentIssue.id,
               commentId: comment.id,
               mutation: "comment",
+              issueTitle: currentIssue.title,
+              issueBody: currentIssue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: currentIssue.identifier,
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
             requestedByActorType: actor.actorType,
@@ -1393,6 +1444,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
               commentId: comment.id,
               source: "issue.comment",
               wakeReason: "issue_commented",
+              issueTitle: currentIssue.title,
+              issueBody: currentIssue.description ?? null,
+              commentBody: comment.body,
+              issueIdentifier: currentIssue.identifier,
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
           });
@@ -1413,7 +1468,14 @@ export function issueRoutes(db: Db, storage: StorageService) {
           source: "automation",
           triggerDetail: "system",
           reason: "issue_comment_mentioned",
-          payload: { issueId: id, commentId: comment.id },
+          payload: {
+            issueId: id,
+            commentId: comment.id,
+            issueTitle: currentIssue.title,
+            issueBody: currentIssue.description ?? null,
+            commentBody: comment.body,
+            issueIdentifier: currentIssue.identifier,
+          },
           requestedByActorType: actor.actorType,
           requestedByActorId: actor.actorId,
           contextSnapshot: {
@@ -1423,6 +1485,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
             wakeCommentId: comment.id,
             wakeReason: "issue_comment_mentioned",
             source: "comment.mention",
+            issueTitle: currentIssue.title,
+            issueBody: currentIssue.description ?? null,
+            commentBody: comment.body,
+            issueIdentifier: currentIssue.identifier,
           },
         });
       }
