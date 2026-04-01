@@ -321,7 +321,6 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       rawStderr: proc.stderr,
       parsed: parseOpenCodeJsonl(proc.stdout),
     };
-    };
   };
 
   const toResult = (
