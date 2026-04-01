@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import type { Db } from "@paperclipai/db";
+import { normalizeWakeCommentBody } from "@paperclipai/adapter-utils/server-utils";
 import {
   addIssueCommentSchema,
   createIssueAttachmentMetadataSchema,
@@ -999,6 +1000,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       }
 
       if (commentBody && comment) {
+        const wakeCommentBody = normalizeWakeCommentBody(commentBody);
         let mentionedIds: string[] = [];
         try {
           mentionedIds = await svc.findMentionedAgents(issue.companyId, commentBody);
@@ -1016,6 +1018,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
             payload: {
               issueId: id,
               commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               issueTitle: issue.title,
               issueBody: issue.description ?? null,
               commentBody: comment.body,
@@ -1028,6 +1031,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
               taskId: id,
               commentId: comment.id,
               wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               wakeReason: "issue_comment_mentioned",
               source: "comment.mention",
               issueTitle: issue.title,
@@ -1388,6 +1392,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       const actorIsAgent = actor.actorType === "agent";
       const selfComment = actorIsAgent && actor.actorId === assigneeId;
       const skipWake = selfComment || isClosed;
+      const wakeCommentBody = normalizeWakeCommentBody(req.body.body);
       if (assigneeId && (reopened || !skipWake)) {
         if (reopened) {
           wakeups.set(assigneeId, {
@@ -1397,6 +1402,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
             payload: {
               issueId: currentIssue.id,
               commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               reopenedFrom: reopenFromStatus,
               mutation: "comment",
               issueTitle: currentIssue.title,
@@ -1411,6 +1417,8 @@ export function issueRoutes(db: Db, storage: StorageService) {
               issueId: currentIssue.id,
               taskId: currentIssue.id,
               commentId: comment.id,
+              wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               source: "issue.comment.reopen",
               wakeReason: "issue_reopened_via_comment",
               reopenedFrom: reopenFromStatus,
@@ -1429,6 +1437,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
             payload: {
               issueId: currentIssue.id,
               commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               mutation: "comment",
               issueTitle: currentIssue.title,
               issueBody: currentIssue.description ?? null,
@@ -1442,6 +1451,8 @@ export function issueRoutes(db: Db, storage: StorageService) {
               issueId: currentIssue.id,
               taskId: currentIssue.id,
               commentId: comment.id,
+              wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               source: "issue.comment",
               wakeReason: "issue_commented",
               issueTitle: currentIssue.title,
@@ -1471,6 +1482,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
           payload: {
             issueId: id,
             commentId: comment.id,
+            ...(wakeCommentBody ? { wakeCommentBody } : {}),
             issueTitle: currentIssue.title,
             issueBody: currentIssue.description ?? null,
             commentBody: comment.body,
@@ -1483,6 +1495,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
             taskId: id,
             commentId: comment.id,
             wakeCommentId: comment.id,
+            ...(wakeCommentBody ? { wakeCommentBody } : {}),
             wakeReason: "issue_comment_mentioned",
             source: "comment.mention",
             issueTitle: currentIssue.title,
