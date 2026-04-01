@@ -4,6 +4,7 @@ import multer from "multer";
 import { z } from "zod";
 import type { Db } from "@paperclipai/db";
 import { issueExecutionDecisions } from "@paperclipai/db";
+import { normalizeWakeCommentBody } from "@paperclipai/adapter-utils/server-utils";
 import {
   addIssueCommentSchema,
   createIssueAttachmentMetadataSchema,
@@ -1743,6 +1744,7 @@ export function issueRoutes(
       }
 
       if (commentBody && comment) {
+        const wakeCommentBody = normalizeWakeCommentBody(commentBody);
         const assigneeId = issue.assigneeAgentId;
         const actorIsAgent = actor.actorType === "agent";
         const selfComment = actorIsAgent && actor.actorId === assigneeId;
@@ -1757,6 +1759,7 @@ export function issueRoutes(
               issueId: id,
               commentId: comment.id,
               mutation: "comment",
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               ...(reopened ? { reopenedFrom: reopenFromStatus } : {}),
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
@@ -1767,6 +1770,7 @@ export function issueRoutes(
               taskId: id,
               commentId: comment.id,
               wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               source: reopened ? "issue.comment.reopen" : "issue.comment",
               wakeReason: reopened ? "issue_reopened_via_comment" : "issue_commented",
               ...(reopened ? { reopenedFrom: reopenFromStatus } : {}),
@@ -1774,7 +1778,6 @@ export function issueRoutes(
             },
           });
         }
-
         let mentionedIds: string[] = [];
         try {
           mentionedIds = await svc.findMentionedAgents(issue.companyId, commentBody);
@@ -1788,7 +1791,11 @@ export function issueRoutes(
             source: "automation",
             triggerDetail: "system",
             reason: "issue_comment_mentioned",
-            payload: { issueId: id, commentId: comment.id },
+            payload: {
+              issueId: id,
+              commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
+            },
             requestedByActorType: actor.actorType,
             requestedByActorId: actor.actorId,
             contextSnapshot: {
@@ -1796,6 +1803,7 @@ export function issueRoutes(
               taskId: id,
               commentId: comment.id,
               wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               wakeReason: "issue_comment_mentioned",
               source: "comment.mention",
             },
@@ -2265,6 +2273,7 @@ export function issueRoutes(
       const actorIsAgent = actor.actorType === "agent";
       const selfComment = actorIsAgent && actor.actorId === assigneeId;
       const skipWake = selfComment || isClosed;
+      const wakeCommentBody = normalizeWakeCommentBody(req.body.body);
       if (assigneeId && (reopened || !skipWake)) {
         if (reopened) {
           wakeups.set(assigneeId, {
@@ -2274,6 +2283,7 @@ export function issueRoutes(
             payload: {
               issueId: currentIssue.id,
               commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               reopenedFrom: reopenFromStatus,
               mutation: "comment",
               ...(interruptedRunId ? { interruptedRunId } : {}),
@@ -2285,6 +2295,7 @@ export function issueRoutes(
               taskId: currentIssue.id,
               commentId: comment.id,
               wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               source: "issue.comment.reopen",
               wakeReason: "issue_reopened_via_comment",
               reopenedFrom: reopenFromStatus,
@@ -2299,6 +2310,7 @@ export function issueRoutes(
             payload: {
               issueId: currentIssue.id,
               commentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               mutation: "comment",
               ...(interruptedRunId ? { interruptedRunId } : {}),
             },
@@ -2309,6 +2321,7 @@ export function issueRoutes(
               taskId: currentIssue.id,
               commentId: comment.id,
               wakeCommentId: comment.id,
+              ...(wakeCommentBody ? { wakeCommentBody } : {}),
               source: "issue.comment",
               wakeReason: "issue_commented",
               ...(interruptedRunId ? { interruptedRunId } : {}),
@@ -2331,7 +2344,11 @@ export function issueRoutes(
           source: "automation",
           triggerDetail: "system",
           reason: "issue_comment_mentioned",
-          payload: { issueId: id, commentId: comment.id },
+          payload: {
+            issueId: id,
+            commentId: comment.id,
+            ...(wakeCommentBody ? { wakeCommentBody } : {}),
+          },
           requestedByActorType: actor.actorType,
           requestedByActorId: actor.actorId,
           contextSnapshot: {
@@ -2339,6 +2356,7 @@ export function issueRoutes(
             taskId: id,
             commentId: comment.id,
             wakeCommentId: comment.id,
+            ...(wakeCommentBody ? { wakeCommentBody } : {}),
             wakeReason: "issue_comment_mentioned",
             source: "comment.mention",
           },

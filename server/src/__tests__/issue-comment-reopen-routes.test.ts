@@ -510,4 +510,58 @@ describe("issue comment reopen routes", () => {
       }),
     );
   });
+
+  it("includes wake comment body when reopening via the comment composer path", async () => {
+    mockIssueService.getById.mockResolvedValue(makeIssue("done"));
+    mockIssueService.update.mockImplementation(async (_id: string, patch: Record<string, unknown>) => ({
+      ...makeIssue("done"),
+      ...patch,
+    }));
+
+    const res = await request(await installActor(createApp()))
+      .post("/api/issues/11111111-1111-4111-8111-111111111111/comments")
+      .send({ body: "please revise this section", reopen: true });
+
+    expect(res.status).toBe(201);
+    expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      expect.objectContaining({
+        reason: "issue_reopened_via_comment",
+        payload: expect.objectContaining({
+          commentId: "comment-1",
+          wakeCommentBody: "please revise this section",
+        }),
+        contextSnapshot: expect.objectContaining({
+          commentId: "comment-1",
+          wakeCommentId: "comment-1",
+          wakeCommentBody: "please revise this section",
+        }),
+      }),
+    );
+  });
+
+  it("includes wake comment body for issue comment follow-up wakes", async () => {
+    mockIssueService.getById.mockResolvedValue(makeIssue("todo"));
+
+    const res = await request(await installActor(createApp()))
+      .post("/api/issues/11111111-1111-4111-8111-111111111111/comments")
+      .send({ body: "commit and push the accepted revision" });
+
+    expect(res.status).toBe(201);
+    expect(mockHeartbeatService.wakeup).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      expect.objectContaining({
+        reason: "issue_commented",
+        payload: expect.objectContaining({
+          commentId: "comment-1",
+          wakeCommentBody: "commit and push the accepted revision",
+        }),
+        contextSnapshot: expect.objectContaining({
+          commentId: "comment-1",
+          wakeCommentId: "comment-1",
+          wakeCommentBody: "commit and push the accepted revision",
+        }),
+      }),
+    );
+  });
 });
