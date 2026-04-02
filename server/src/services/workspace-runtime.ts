@@ -271,6 +271,17 @@ function gitErrorIncludes(error: unknown, needle: string) {
   return message.toLowerCase().includes(needle.toLowerCase());
 }
 
+function parseRemoteTrackingBaseRef(value: string): { remote: string; branch: string } | null {
+  const match = /^(?<remote>[^/]+)\/(?<branch>.+)$/.exec(value.trim());
+  if (!match?.groups?.remote || !match?.groups?.branch) {
+    return null;
+  }
+  return {
+    remote: match.groups.remote,
+    branch: match.groups.branch,
+  };
+}
+
 async function directoryExists(value: string) {
   return fs.stat(value).then((stats) => stats.isDirectory()).catch(() => false);
 }
@@ -624,6 +635,24 @@ export async function realizeExecutionWorkspace(input: {
       };
     }
     throw new Error(`Configured worktree path "${worktreePath}" already exists and is not a git worktree.`);
+  }
+
+  const remoteTrackingBaseRef = parseRemoteTrackingBaseRef(baseRef);
+  if (remoteTrackingBaseRef) {
+    await recordGitOperation(input.recorder, {
+      phase: "worktree_prepare",
+      args: ["fetch", "--prune", remoteTrackingBaseRef.remote],
+      cwd: repoRoot,
+      metadata: {
+        repoRoot,
+        worktreePath,
+        branchName,
+        baseRef,
+        remote: remoteTrackingBaseRef.remote,
+      },
+      successMessage: `Fetched ${remoteTrackingBaseRef.remote} before creating git worktree at ${worktreePath}\n`,
+      failureLabel: `git fetch ${remoteTrackingBaseRef.remote}`,
+    });
   }
 
   try {
