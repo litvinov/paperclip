@@ -2511,8 +2511,20 @@ export function issueService(db: Db) {
         throw unprocessable("in_progress issues require an assignee");
       }
       return db.transaction(async (tx) => {
+        const parentIssueContext = issueData.parentId
+          ? await tx
+              .select({
+                projectId: issues.projectId,
+                goalId: issues.goalId,
+              })
+              .from(issues)
+              .where(and(eq(issues.id, issueData.parentId), eq(issues.companyId, companyId)))
+              .then((rows) => rows[0] ?? null)
+          : null;
+        const resolvedProjectId = issueData.projectId ?? parentIssueContext?.projectId ?? null;
+        const resolvedGoalId = issueData.goalId ?? parentIssueContext?.goalId ?? null;
         const defaultCompanyGoal = await getDefaultCompanyGoal(tx, companyId);
-        const projectGoalId = await getProjectDefaultGoalId(tx, companyId, issueData.projectId);
+        const projectGoalId = await getProjectDefaultGoalId(tx, companyId, resolvedProjectId);
         let projectWorkspaceId = issueData.projectWorkspaceId ?? null;
         let executionWorkspaceId = issueData.executionWorkspaceId ?? null;
         let executionWorkspacePreference = issueData.executionWorkspacePreference ?? null;
@@ -2554,12 +2566,12 @@ export function issueService(db: Db) {
         if (
           executionWorkspaceSettings == null &&
           executionWorkspaceId == null &&
-          issueData.projectId
+          resolvedProjectId
         ) {
           const project = await tx
             .select({ executionWorkspacePolicy: projects.executionWorkspacePolicy })
             .from(projects)
-            .where(and(eq(projects.id, issueData.projectId), eq(projects.companyId, companyId)))
+            .where(and(eq(projects.id, resolvedProjectId), eq(projects.companyId, companyId)))
             .then((rows) => rows[0] ?? null);
           executionWorkspaceSettings =
             defaultIssueExecutionWorkspaceSettingsForProject(
@@ -2569,13 +2581,13 @@ export function issueService(db: Db) {
               ),
             ) as Record<string, unknown> | null;
         }
-        if (!projectWorkspaceId && issueData.projectId) {
+        if (!projectWorkspaceId && resolvedProjectId) {
           const project = await tx
             .select({
               executionWorkspacePolicy: projects.executionWorkspacePolicy,
             })
             .from(projects)
-            .where(and(eq(projects.id, issueData.projectId), eq(projects.companyId, companyId)))
+            .where(and(eq(projects.id, resolvedProjectId), eq(projects.companyId, companyId)))
             .then((rows) => rows[0] ?? null);
           const projectPolicy = parseProjectExecutionWorkspacePolicy(project?.executionWorkspacePolicy);
           projectWorkspaceId = projectPolicy?.defaultProjectWorkspaceId ?? null;
@@ -2583,16 +2595,16 @@ export function issueService(db: Db) {
             projectWorkspaceId = await tx
               .select({ id: projectWorkspaces.id })
               .from(projectWorkspaces)
-              .where(and(eq(projectWorkspaces.projectId, issueData.projectId), eq(projectWorkspaces.companyId, companyId)))
+              .where(and(eq(projectWorkspaces.projectId, resolvedProjectId), eq(projectWorkspaces.companyId, companyId)))
               .orderBy(desc(projectWorkspaces.isPrimary), asc(projectWorkspaces.createdAt), asc(projectWorkspaces.id))
               .then((rows) => rows[0]?.id ?? null);
           }
         }
         if (projectWorkspaceId) {
-          await assertValidProjectWorkspace(companyId, issueData.projectId, projectWorkspaceId, tx);
+          await assertValidProjectWorkspace(companyId, resolvedProjectId, projectWorkspaceId, tx);
         }
         if (executionWorkspaceId) {
-          await assertValidExecutionWorkspace(companyId, issueData.projectId, executionWorkspaceId, tx);
+          await assertValidExecutionWorkspace(companyId, resolvedProjectId, executionWorkspaceId, tx);
         }
         // Self-correcting counter: use MAX(issue_number) + 1 if the counter
         // has drifted below the actual max, preventing identifier collisions.
@@ -2615,10 +2627,11 @@ export function issueService(db: Db) {
 
         const values = {
           ...issueData,
+          ...(resolvedProjectId ? { projectId: resolvedProjectId } : {}),
           originKind: issueData.originKind ?? "manual",
           goalId: resolveIssueGoalId({
-            projectId: issueData.projectId,
-            goalId: issueData.goalId,
+            projectId: resolvedProjectId,
+            goalId: resolvedGoalId,
             projectGoalId,
             defaultGoalId: defaultCompanyGoal?.id ?? null,
           }),
